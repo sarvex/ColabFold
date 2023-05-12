@@ -78,23 +78,24 @@ def mk_mock_template(
     templates_aatype = templates.residue_constants.sequence_to_onehot(
         output_templates_sequence, templates.residue_constants.HHBLITS_AA_TO_ID
     )
-    template_features = {
+    return {
         "template_all_atom_positions": np.tile(
             templates_all_atom_positions[None], [num_temp, 1, 1, 1]
         ),
         "template_all_atom_masks": np.tile(
             templates_all_atom_masks[None], [num_temp, 1, 1]
         ),
-        "template_sequence": [f"none".encode()] * num_temp,
-        "template_aatype": np.tile(np.array(templates_aatype)[None], [num_temp, 1, 1]),
+        "template_sequence": ["none".encode()] * num_temp,
+        "template_aatype": np.tile(
+            np.array(templates_aatype)[None], [num_temp, 1, 1]
+        ),
         "template_confidence_scores": np.tile(
             output_confidence_scores[None], [num_temp, 1]
         ),
-        "template_domain_names": [f"none".encode()] * num_temp,
-        "template_release_date": [f"none".encode()] * num_temp,
+        "template_domain_names": ["none".encode()] * num_temp,
+        "template_release_date": ["none".encode()] * num_temp,
         "template_sum_probs": np.zeros([num_temp], dtype=np.float32),
     }
-    return template_features
 
 
 def mk_template(
@@ -133,23 +134,21 @@ def batch_input(
     crop_feats = {k: [None] + v for k, v in dict(eval_cfg.feat).items()}
 
     # templates models
-    if (model_name == "model_1" or model_name == "model_2") and use_templates:
+    if model_name in {"model_1", "model_2"} and use_templates:
         pad_msa_clusters = eval_cfg.max_msa_clusters - eval_cfg.max_templates
     else:
         pad_msa_clusters = eval_cfg.max_msa_clusters
 
     max_msa_clusters = pad_msa_clusters
 
-    # let's try pad (num_res + X)
-    input_fix = make_fixed_size(
+    return make_fixed_size(
         input_features,
         crop_feats,
         msa_cluster_size=max_msa_clusters,  # true_msa (4, 512, 68)
         extra_msa_size=5120,  # extra_msa (4, 5120, 68)
         num_res=crop_len,  # aatype (4, 68)
         num_templates=4,
-    )  # template_mask (4, 4) second value
-    return input_fix
+    )
 
 
 def predict_structure(
@@ -210,11 +209,7 @@ def predict_structure(
 
         mean_plddt = np.mean(prediction_result["plddt"][:seq_len])
         mean_ptm = prediction_result["ptm"]
-        if rank_by == "plddt":
-            mean_score = mean_plddt
-        else:
-            mean_score = mean_ptm
-
+        mean_score = mean_plddt if rank_by == "plddt" else mean_ptm
         if is_complex:
             logger.info(
                 f"{model_name} took {prediction_time:.1f}s ({recycles[0]} recycles) "
@@ -262,10 +257,10 @@ def predict_structure(
         if model_type == "AlphaFold2-multimer":
             iptmscore.append(prediction_result["iptm"])
         max_paes.append(prediction_result["max_predicted_aligned_error"].item())
-        paes_res = []
-
-        for i in range(seq_len):
-            paes_res.append(prediction_result["predicted_aligned_error"][i][:seq_len])
+        paes_res = [
+            prediction_result["predicted_aligned_error"][i][:seq_len]
+            for i in range(seq_len)
+        ]
         paes.append(paes_res)
         if do_relax:
             from alphafold.common import residue_constants
@@ -300,11 +295,11 @@ def predict_structure(
         if mean_score > stop_at_score:
             break
     # rerank models based on predicted lddt
-    if rank_by == "ptmscore":
-        model_rank = np.array(ptmscore).argsort()[::-1]
-    elif rank_by == "multimer":
+    if rank_by == "multimer":
         rank_array = np.array(iptmscore) * 0.8 + np.array(ptmscore) * 0.2
         model_rank = rank_array.argsort()[::-1]
+    elif rank_by == "ptmscore":
+        model_rank = np.array(ptmscore).argsort()[::-1]
     else:
         model_rank = np.mean(plddts, -1).argsort()[::-1]
     out = {}

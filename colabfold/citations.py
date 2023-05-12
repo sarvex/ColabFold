@@ -108,19 +108,17 @@ def write_bibtex(
     bibtex_file: str = "cite.bibtex",
 ) -> Path:
     to_cite = ["Mirdita2021"]
-    if model == "AlphaFold2-ptm":
-        to_cite += ["Jumper2021"]
     if model == "AlphaFold2-multimer":
         to_cite += ["Evans2021"]
+    elif model == "AlphaFold2-ptm":
+        to_cite += ["Jumper2021"]
     if use_msa:
         to_cite += ["Mirdita2019"]
-    if use_msa:
         to_cite += ["Mirdita2017"]
     if use_env:
         to_cite += ["Mitchell2019"]
     if use_templates:
         to_cite += ["Steinegger2019"]
-    if use_templates:
         to_cite += ["Berman2003"]
     if use_amber:
         to_cite += ["Eastman2017"]

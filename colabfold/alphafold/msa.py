@@ -42,9 +42,9 @@ def make_fixed_size(
             f"{shape} vs {schema}"
         )
         pad_size = [pad_size_map.get(s2, None) or s1 for (s1, s2) in zip(shape, schema)]
-        padding = [(0, p - tf.shape(v)[i]) for i, p in enumerate(pad_size)]
-
-        if padding:
+        if padding := [
+            (0, p - tf.shape(v)[i]) for i, p in enumerate(pad_size)
+        ]:
             # TODO: alphafold's typing is wrong
             protein[k] = tf.pad(v, padding, name=f"pad_to_fixed_{k}")
             protein[k].set_shape(pad_size)

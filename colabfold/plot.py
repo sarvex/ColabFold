@@ -13,7 +13,7 @@ def plot_predicted_alignment_error(
         plt.title(model_name)
         plt.imshow(value["pae"], label=model_name, cmap="bwr", vmin=0, vmax=30)
         plt.colorbar()
-    plt.savefig(result_dir.joinpath(jobname + "_PAE.png"))
+    plt.savefig(result_dir.joinpath(f"{jobname}_PAE.png"))
     if show:
         plt.show()
     plt.close()
@@ -23,7 +23,7 @@ def plot_msa(msa, query_sequence, seq_len_list, total_seq_len, dpi=100):
     # gather MSA info
     prev_pos = 0
     lines = []
-    Ln = np.cumsum(np.append(0, [len for len in seq_len_list]))
+    Ln = np.cumsum(np.append(0, list(seq_len_list)))
 
     for l in seq_len_list:
         chain_seq = np.array(query_sequence[prev_pos : prev_pos + l])

@@ -38,9 +38,9 @@ class MockRunModel:
         """feat["msa"] or feat["msa_feat"] for normal/complexes is non-deterministic, so we remove it before storing,
         but we keep it for predicting or returning, where we need it for plotting"""
         feat_no_msa = dict(feat)
-        if "msa_feat" in feat_no_msa.keys():
+        if "msa_feat" in feat_no_msa:
             del feat_no_msa["msa_feat"]
-        elif "msa" in feat_no_msa.keys():
+        elif "msa" in feat_no_msa:
             del feat_no_msa["msa"]
         else:
             raise AssertionError("neither msa nor msa_feat in feat")
@@ -72,16 +72,14 @@ class MockRunModel:
         with lzma.open(prediction_file) as prediction_fp:
             prediction = pickle.load(prediction_fp)
 
-        is_same = True
-        for key in input_fix:
-            if (
+        is_same = not any(
+            (
                 key not in feat_no_msa
                 or feat_no_msa[key].shape != input_fix[key].shape
                 or not numpy.allclose(feat_no_msa[key], input_fix[key])
-            ):
-                is_same = False
-                break
-
+            )
+            for key in input_fix
+        )
         if is_same:
             return prediction, (3, 0)
 

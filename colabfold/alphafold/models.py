@@ -37,15 +37,15 @@ def load_models_and_params(
                 model_name=model_name + model_suffix, data_dir=str(data_dir)
             )
             model_config = config.model_config(model_name + model_suffix)
-            model_config.model.stop_at_score = float(stop_at_score)
+            model_config.model.stop_at_score = stop_at_score
             model_config.model.stop_at_score_ranker = rank_by
-            if model_suffix == "_ptm":
+            if model_suffix == "_multimer":
+                model_config.model.num_recycle = num_recycle
+                model_config.model.num_ensemble_eval = 1
+            elif model_suffix == "_ptm":
                 model_config.data.eval.num_ensemble = 1
                 model_config.data.common.num_recycle = num_recycle
                 model_config.model.num_recycle = num_recycle
-            elif model_suffix == "_multimer":
-                model_config.model.num_recycle = num_recycle
-                model_config.model.num_ensemble_eval = 1
             model_runner_and_params.append(
                 (model_name, model.RunModel(model_config, params), params)
             )
@@ -58,22 +58,20 @@ def load_models_and_params(
         model_runner = None
         for model_number in model_build_order:
             if model_number in models_need_compilation:
-                model_config = config.model_config(
-                    "model_" + str(model_number) + model_suffix
-                )
-                model_config.model.stop_at_score = float(stop_at_score)
+                model_config = config.model_config(f"model_{str(model_number)}{model_suffix}")
+                model_config.model.stop_at_score = stop_at_score
                 model_config.model.stop_at_score_ranker = rank_by
-                if model_suffix == "_ptm":
+                if model_suffix == "_multimer":
+                    model_config.model.num_ensemble_eval = 1
+                    model_config.model.num_recycle = num_recycle
+                elif model_suffix == "_ptm":
                     model_config.data.eval.num_ensemble = 1
                     model_config.data.common.num_recycle = num_recycle
-                    model_config.model.num_recycle = num_recycle
-                elif model_suffix == "_multimer":
-                    model_config.model.num_ensemble_eval = 1
                     model_config.model.num_recycle = num_recycle
                 model_runner = model.RunModel(
                     model_config,
                     data.get_model_haiku_params(
-                        model_name="model_" + str(model_number) + model_suffix,
+                        model_name=f"model_{str(model_number)}{model_suffix}",
                         data_dir=str(data_dir),
                     ),
                 )
@@ -81,11 +79,7 @@ def load_models_and_params(
             params = data.get_model_haiku_params(
                 model_name=model_name + model_suffix, data_dir=str(data_dir)
             )
-            # keep only parameters of compiled model
-            params_subset = {}
-            for k in model_runner.params.keys():
-                params_subset[k] = params[k]
-
+            params_subset = {k: params[k] for k in model_runner.params.keys()}
             model_runner_and_params_build_order.append(
                 (model_name, model_runner, params_subset)
             )

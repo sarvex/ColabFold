@@ -8,14 +8,14 @@ def parse_a3m(a3m_lines=None, a3m_file=None, filter_qid=0.15, filter_cov=0.5, N=
   
   def seqid(a, b):
     return sum(c1 == c2 for c1, c2 in zip(a, b))
-  
+
   def nongaps(a):
     return sum(c != "-" for c in a)
-  
+
   def chk(seq, ref_seq):
     rL = len(ref_seq)
     L = nongaps(seq)
-    return not (L > filter_cov*rL and seqid(seq, ref_seq) > filter_qid*L)
+    return L <= filter_cov*rL or seqid(seq, ref_seq) <= filter_qid*L
 
   rm_lower = str.maketrans('','',ascii_lowercase)
 
@@ -92,7 +92,7 @@ def uni_num(ids):
   ########################################
   pa = {a:0 for a in ascii_uppercase}
   for a in ["O","P","Q"]: pa[a] = 1
-  ma = [[{} for k in range(6)],[{} for k in range(6)]]
+  ma = [[{} for _ in range(6)], [{} for _ in range(6)]]
   for n,t in enumerate(range(10)):
     for i in [0,1]:
       for j in [0,4]: ma[i][j][str(t)] = n
@@ -160,12 +160,12 @@ def hash_it(_seq, _lab, _mtx, call_uniprot=False):
   if _seq is None or _lab is None:
     _seq, _lab = parse_a3m(a3m_lines)
 
-  _lab_to_seq = {L:S for L,S in zip(_lab,_seq)}
-  _lab_to_mtx = {L:M for L,M in zip(_lab,_mtx)}
-  
+  _lab_to_seq = dict(zip(_lab,_seq))
+  _lab_to_mtx = dict(zip(_lab,_mtx))
+
   # call uniprot
   _lab_to_uni = map_retrieve(_lab, call_uniprot=call_uniprot)
-  
+
   _uni_to_lab = {}
   for L,U in _lab_to_uni.items():
     for u in U: _uni_to_lab[u] = L
@@ -174,16 +174,15 @@ def hash_it(_seq, _lab, _mtx, call_uniprot=False):
   for U,L in _uni_to_lab.items():
     _uni.append(U)
     __lab.append(L)
-  
+
   _hash = uni_num(_uni)
-  _uni_to_hash = {u:h for u,h in zip(_uni,_hash)}
-  _hash_to_lab = {h:l for h,l in zip(_hash,__lab)}
+  _uni_to_hash = dict(zip(_uni,_hash))
+  _hash_to_lab = dict(zip(_hash,__lab))
 
-  _lab_to_hash = {}
-  for L,U in _lab_to_uni.items():
-    _lab_to_hash[L] = []
-    for u in U: _lab_to_hash[L].append(_uni_to_hash[u])
-
+  _lab_to_hash = {
+      L: [_uni_to_hash[u] for u in U]
+      for L, U in _lab_to_uni.items()
+  }
   return {"_lab_to_seq":_lab_to_seq,
           "_lab_to_mtx":_lab_to_mtx,
           "_lab_to_hash":_lab_to_hash,

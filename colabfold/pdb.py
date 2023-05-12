@@ -49,20 +49,21 @@ def show_pdb(
                     {"atom": BB, "invert": True},
                 ]
             },
-            {"stick": {"colorscheme": f"WhiteCarbon", "radius": 0.3}},
+            {"stick": {"colorscheme": "WhiteCarbon", "radius": 0.3}},
         )
         view.addStyle(
             {"and": [{"resn": "GLY"}, {"atom": "CA"}]},
-            {"sphere": {"colorscheme": f"WhiteCarbon", "radius": 0.3}},
+            {"sphere": {"colorscheme": "WhiteCarbon", "radius": 0.3}},
         )
         view.addStyle(
             {"and": [{"resn": "PRO"}, {"atom": ["C", "O"], "invert": True}]},
-            {"stick": {"colorscheme": f"WhiteCarbon", "radius": 0.3}},
+            {"stick": {"colorscheme": "WhiteCarbon", "radius": 0.3}},
         )
     if show_mainchains:
         BB = ["C", "O", "N", "CA"]
         view.addStyle(
-            {"atom": BB}, {"stick": {"colorscheme": f"WhiteCarbon", "radius": 0.3}}
+            {"atom": BB},
+            {"stick": {"colorscheme": "WhiteCarbon", "radius": 0.3}},
         )
 
     view.zoomTo()

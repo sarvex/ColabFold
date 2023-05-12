@@ -81,11 +81,12 @@ def prep_inputs(sequence, jobname="test", homooligomer="1", output_dir=None, cle
 
   # prediction directory
   if output_dir is None:
-    I["output_dir"] = 'prediction_' + jobname + '_' + cf.get_hash(I["full_sequence"])[:5]
+    I["output_dir"] = (f'prediction_{jobname}_' +
+                       cf.get_hash(I["full_sequence"])[:5])
   else:
     I["output_dir"] = output_dir
   os.makedirs(I["output_dir"], exist_ok=True)
-    
+
   # delete existing files in working directory
   if clean:
     for f in os.listdir(I["output_dir"]):
@@ -93,13 +94,15 @@ def prep_inputs(sequence, jobname="test", homooligomer="1", output_dir=None, cle
 
   if verbose and len(I["full_sequence"]) > 1400:
     print(f"WARNING: For a typical Google-Colab-GPU (16G) session, the max total length is ~1400 residues. You are at {len(I['full_sequence'])}!")
-    print(f"Run Alphafold may crash, unless you trim to the protein(s) to a short length. (See trim options below).")
+    print(
+        "Run Alphafold may crash, unless you trim to the protein(s) to a short length. (See trim options below)."
+    )
 
   if verbose:
     print(f"homooligomer: {I['homooligomer']}")
     print(f"total_length: {len(I['full_sequence'])}")
     print(f"output_dir: {I['output_dir']}")
-    
+
   return I
 
 #######################################################################################################################################
@@ -234,18 +237,17 @@ def prep_msa(I, msa_method="mmseqs2", add_custom_msa=False, msa_format="fas",
     else:
       input_file = custom_msa
     if input_file is None or not os.path.isfile(input_file):
-      raise ValueError("ERROR: `custom_msa` undefined")      
-    else:
+      raise ValueError("ERROR: `custom_msa` undefined")
       # convert to a3m
-      output_file = os.path.join(I["output_dir"],f"upload.a3m")
-      os.system(f"{reformat_loc} {msa_format} a3m {input_file} {output_file}")
+    output_file = os.path.join(I["output_dir"], "upload.a3m")
+    os.system(f"{reformat_loc} {msa_format} a3m {input_file} {output_file}")
 
-      # parse
-      msa, mtx = parsers.parse_a3m(open(output_file,"r").read())
-      I["msas"].append(msa)
-      I["deletion_matrices"].append(mtx)
-      if len(I["msas"][0][0]) != len(I["sequence"]):
-        raise ValueError("ERROR: the length of msa does not match input sequence")
+    # parse
+    msa, mtx = parsers.parse_a3m(open(output_file,"r").read())
+    I["msas"].append(msa)
+    I["deletion_matrices"].append(mtx)
+    if len(I["msas"][0][0]) != len(I["sequence"]):
+      raise ValueError("ERROR: the length of msa does not match input sequence")
 
   if msa_method == "precomputed":
     if IN_COLAB:
@@ -280,7 +282,7 @@ def prep_msa(I, msa_method="mmseqs2", add_custom_msa=False, msa_format="fas",
       if msa_method == "mmseqs2":
         prefix = cf.get_hash(I["sequence"])
         prefix = os.path.join(TMP_DIR,prefix)
-        print(f"running mmseqs2")
+        print("running mmseqs2")
         A3M_LINES = cf.run_mmseqs2(I["seqs"], prefix, use_filter=True, host_url=mmseqs_host_url)
 
       for n, seq in enumerate(I["seqs"]):
@@ -298,7 +300,7 @@ def prep_msa(I, msa_method="mmseqs2", add_custom_msa=False, msa_format="fas",
           print(f"running jackhmmer on seq_{n}")
           # run jackhmmer
           msas_, mtxs_, names_ = ([sum(x,())] for x in run_jackhmmer(seq, prefix))
-        
+
         # pad sequences
         for msa_,mtx_ in zip(msas_,mtxs_):
           msa,mtx = [I["sequence"]],[[0]*len(I["sequence"])]      
@@ -310,13 +312,13 @@ def prep_msa(I, msa_method="mmseqs2", add_custom_msa=False, msa_format="fas",
           I["deletion_matrices"].append(mtx)
 
     # PAIR_MSA
-    if len(I["seqs"]) > 1 and (pair_mode == "paired" or pair_mode == "unpaired+paired"):
+    if len(I["seqs"]) > 1 and pair_mode in ["paired", "unpaired+paired"]:
       print("attempting to pair some sequences...")
 
       if msa_method == "mmseqs2":
         prefix = cf.get_hash(I["sequence"])
         prefix = os.path.join(TMP_DIR,prefix)
-        print(f"running mmseqs2_noenv_nofilter on all seqs")
+        print("running mmseqs2_noenv_nofilter on all seqs")
         A3M_LINES = cf.run_mmseqs2(I["seqs"], prefix, use_env=False, use_filter=False, host_url=mmseqs_host_url)
 
       _data = []
@@ -341,7 +343,7 @@ def prep_msa(I, msa_method="mmseqs2", add_custom_msa=False, msa_format="fas",
           _data.append(pairmsa.hash_it(_msa, _lab, _mtx, call_uniprot=False))
         else:
           _data.append(None)
-      
+
       Ln = len(I["seqs"])
       O = [[None for _ in I["seqs"]] for _ in I["seqs"]]
       for a in range(Ln):
@@ -359,7 +361,7 @@ def prep_msa(I, msa_method="mmseqs2", add_custom_msa=False, msa_format="fas",
               os.system(f"{hhfilter_loc} -maxseq 1000000 -i {TMP_DIR}/tmp.fas -o {TMP_DIR}/tmp.id90.fas -id 90")
               for line in open(f"{TMP_DIR}/tmp.id90.fas","r"):
                 if line.startswith(">"): ok.append(int(line[1:]))
-                
+
               if verbose:      
                 print(f"found {len(_seq_a)} pairs ({len(ok)} after filtering)")
 
@@ -370,7 +372,7 @@ def prep_msa(I, msa_method="mmseqs2", add_custom_msa=False, msa_format="fas",
                   mtx.append(_pad([a,b],[m_a,m_b],"mtx"))
                 I["msas"].append(msa)
                 I["deletion_matrices"].append(mtx)
-      
+
   # save MSA as pickle
   pickle.dump({"msas":I["msas"],"deletion_matrices":I["deletion_matrices"]},
               open(os.path.join(I["output_dir"],"msa.pickle"),"wb"))
@@ -498,27 +500,31 @@ def prep_filter(I, trim="", trim_inverse=False, cov=0, qid=0, verbose=True):
   trim = re.sub(",+",",",trim)
   trim = re.sub("^[,]+","",trim)
   trim = re.sub("[,]+$","",trim)
-  if trim != "" or cov > 0 or qid > 0:
-    mod_I = dict(I)
-    
-    if trim != "":
-      mod_I.update(trim_inputs(trim, mod_I["msas"], mod_I["deletion_matrices"],
-                               mod_I["ori_sequence"], inverse=trim_inverse))
-      
-      mod_I["homooligomers"] = [mod_I["homooligomers"][c] for c in mod_I["chains"]]
-      mod_I["sequence"] = mod_I["ori_sequence"].replace("/","").replace(":","")
-      mod_I["seqs"] = mod_I["ori_sequence"].replace("/","").split(":") 
-      mod_I["full_sequence"] = "".join([s*h for s,h in zip(mod_I["seqs"], mod_I["homooligomers"])])
-      new_length = len(mod_I["full_sequence"])
-      if verbose:
-        print(f"total_length: '{new_length}' after trimming")
+  if trim == "" and cov <= 0 and qid <= 0:
+    return I
+  mod_I = dict(I)
 
-    if cov > 0 or qid > 0:
-      mod_I.update(cov_qid_filter(mod_I["msas"], mod_I["deletion_matrices"],
-                                     mod_I["ori_sequence"], cov=cov/100, qid=qid/100))
-    return mod_I
-  else:
-    return I  
+  if trim != "":
+    mod_I |= trim_inputs(
+        trim,
+        mod_I["msas"],
+        mod_I["deletion_matrices"],
+        mod_I["ori_sequence"],
+        inverse=trim_inverse,
+    )
+
+    mod_I["homooligomers"] = [mod_I["homooligomers"][c] for c in mod_I["chains"]]
+    mod_I["sequence"] = mod_I["ori_sequence"].replace("/","").replace(":","")
+    mod_I["seqs"] = mod_I["ori_sequence"].replace("/","").split(":")
+    mod_I["full_sequence"] = "".join([s*h for s,h in zip(mod_I["seqs"], mod_I["homooligomers"])])
+    if verbose:
+      new_length = len(mod_I["full_sequence"])
+      print(f"total_length: '{new_length}' after trimming")
+
+  if cov > 0 or qid > 0:
+    mod_I.update(cov_qid_filter(mod_I["msas"], mod_I["deletion_matrices"],
+                                   mod_I["ori_sequence"], cov=cov/100, qid=qid/100))
+  return mod_I  
   
 #######################################################################################################################################
 # prep features
@@ -571,7 +577,7 @@ def make_fixed_size(feat, runner):
   '''pad input features'''
   opt = runner["opt"]
   cfg = runner["model"].config
-  shape_schema = {k:[None]+v for k,v in dict(cfg.data.eval.feat).items()}   
+  shape_schema = {k:[None]+v for k,v in dict(cfg.data.eval.feat).items()}
   pad_size_map = {
       shape_placeholders.NUM_RES: opt["L"],
       shape_placeholders.NUM_MSA_SEQ: cfg.data.eval.max_msa_clusters,
@@ -588,8 +594,7 @@ def make_fixed_size(feat, runner):
         f'Rank mismatch between shape and shape schema for {k}: '
         f'{shape} vs {schema}')
     pad_size = [pad_size_map.get(s2, None) or s1 for (s1, s2) in zip(shape, schema)]
-    padding = [(0, p - tf.shape(v)[i]) for i, p in enumerate(pad_size)]
-    if padding:
+    if padding := [(0, p - tf.shape(v)[i]) for i, p in enumerate(pad_size)]:
       feat[k] = tf.pad(v, padding, name=f'pad_to_fixed_{k}')
       feat[k].set_shape(pad_size)
   return {k:np.asarray(v) for k,v in feat.items()}
@@ -620,30 +625,28 @@ def prep_model_runner(opt=None, model_name="model_5", old_runner=None, params_lo
     for k in OPT_DEFAULT:
       if k not in opt: opt[k] = OPT_DEFAULT[k]
 
-  # if old_runner not defined or [opt]ions changed, start new runner
-  if old_runner is None or old_runner["opt"] != opt:
-    clear_mem()
-    name = f"{model_name}_ptm" if opt["use_ptm"] else model_name
-    cfg = config.model_config(name)
-
-    if opt["use_turbo"]:
-      if opt["N"] is None:
-        cfg.data.eval.max_msa_clusters = opt["max_msa_clusters"]
-        cfg.data.common.max_extra_msa = opt["max_extra_msa"]
-      else:
-        msa_clusters = min(opt["N"], opt["max_msa_clusters"])
-        cfg.data.eval.max_msa_clusters = msa_clusters
-        cfg.data.common.max_extra_msa = max(min(opt["N"] - msa_clusters, opt["max_extra_msa"]),1)
-
-    cfg.data.common.num_recycle = opt["max_recycles"]
-    cfg.model.num_recycle = opt["max_recycles"]
-    cfg.model.recycle_tol = opt["tol"]
-    cfg.data.eval.num_ensemble = opt["num_ensemble"]
-
-    params = data.get_model_haiku_params(name, params_loc)
-    return {"model":model.RunModel(cfg, params, is_training=opt["is_training"]), "opt":opt}
-  else:
+  if old_runner is not None and old_runner["opt"] == opt:
     return old_runner
+  clear_mem()
+  name = f"{model_name}_ptm" if opt["use_ptm"] else model_name
+  cfg = config.model_config(name)
+
+  if opt["use_turbo"]:
+    if opt["N"] is None:
+      cfg.data.eval.max_msa_clusters = opt["max_msa_clusters"]
+      cfg.data.common.max_extra_msa = opt["max_extra_msa"]
+    else:
+      msa_clusters = min(opt["N"], opt["max_msa_clusters"])
+      cfg.data.eval.max_msa_clusters = msa_clusters
+      cfg.data.common.max_extra_msa = max(min(opt["N"] - msa_clusters, opt["max_extra_msa"]),1)
+
+  cfg.data.common.num_recycle = opt["max_recycles"]
+  cfg.model.num_recycle = opt["max_recycles"]
+  cfg.model.recycle_tol = opt["tol"]
+  cfg.data.eval.num_ensemble = opt["num_ensemble"]
+
+  params = data.get_model_haiku_params(name, params_loc)
+  return {"model":model.RunModel(cfg, params, is_training=opt["is_training"]), "opt":opt}
   
 def run_alphafold(feature_dict, opt=None, runner=None, num_models=5, num_samples=1, subsample_msa=True,
                   pad_feats=False, rank_by="pLDDT", show_images=True, params_loc='./alphafold/data', verbose=True):
@@ -670,7 +673,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, num_models=5, num_samples
 
   def parse_results(prediction_result, processed_feature_dict, r, t, num_res):
     '''parse results and convert to numpy arrays'''
-    
+
     to_np = lambda a: np.asarray(a)
     def class_to_np(c):
       class dict2obj():
@@ -708,7 +711,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, num_models=5, num_samples
   else:
     for k in OPT_DEFAULT.keys():
       if k not in opt: opt[k] = OPT_DEFAULT[k]
-          
+
   model_names = ['model_1', 'model_2', 'model_3', 'model_4', 'model_5'][:num_models]
   total = len(model_names) * num_samples
   outs = {}
@@ -726,13 +729,13 @@ def run_alphafold(feature_dict, opt=None, runner=None, num_models=5, num_samples
     tmp_pdb_path = os.path.join(feature_dict["output_dir"],f'unranked_{key}_unrelaxed.pdb')
     pdb_lines = protein.to_pdb(o['unrelaxed_protein'])
     with open(tmp_pdb_path, 'w') as f: f.write(pdb_lines)
-  
+
   disable_tqdm = not verbose
   with tqdm.notebook.tqdm(total=total, bar_format=TQDM_BAR_FORMAT, disable=disable_tqdm) as pbar:
     if opt["use_turbo"]:
       if runner is None:
         runner = prep_model_runner(opt,params_loc=params_loc)
-      
+
       # go through each random_seed
       for seed in range(num_samples):
         # prep input features
@@ -743,7 +746,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, num_models=5, num_samples
 
         # go through each model
         for num, model_name in enumerate(model_names):
-          name = model_name+"_ptm" if opt["use_ptm"] else model_name
+          name = f"{model_name}_ptm" if opt["use_ptm"] else model_name
           key = f"{name}_seed_{seed}"
           pbar.set_description(f'Running {key}')
 
@@ -770,7 +773,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, num_models=5, num_samples
     else:  
       # go through each model
       for num, model_name in enumerate(model_names):
-        name = model_name+"_ptm" if opt["use_ptm"] else model_name
+        name = f"{model_name}_ptm" if opt["use_ptm"] else model_name
         model_runner = prep_model_runner(opt, model_name=model_name, params_loc=params_loc)["model"]
 
         # go through each random_seed
@@ -778,7 +781,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, num_models=5, num_samples
           key = f"{name}_seed_{seed}"
           pbar.set_description(f'Running {key}')
           processed_feature_dict = model_runner.process_features(feature_dict, random_seed=seed)
-          
+
           # predict
           prediction_result, (r, t) = model_runner.predict(processed_feature_dict, random_seed=seed)
           outs[key] = parse_results(prediction_result, processed_feature_dict, r=r, t=t, num_res=num_res)
@@ -789,10 +792,10 @@ def run_alphafold(feature_dict, opt=None, runner=None, num_models=5, num_samples
           # report          
           do_report(key)
           pbar.update(n=1)
-        
+
         # cleanup
         del model_runner
-  
+
   # Find the best model according to the mean pLDDT.
   model_rank = list(outs.keys())
   model_rank = [model_rank[i] for i in np.argsort([outs[x][rank_by] for x in model_rank])[::-1]]
@@ -807,7 +810,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, num_models=5, num_samples
     pdb_lines = protein.to_pdb(outs[key]["unrelaxed_protein"])
     with open(pred_output_path, 'w') as f:
       f.write(pdb_lines)
-    
+
     tmp_pdb_path = os.path.join(feature_dict["output_dir"],f'unranked_{key}_unrelaxed.pdb')
     if os.path.isfile(tmp_pdb_path):
       os.remove(tmp_pdb_path)

@@ -146,10 +146,14 @@ def run_mmseqs2(x, prefix, use_env=True, use_filter=True,
           out = submit(seqs_unique, mode, N)
 
         if out["status"] == "ERROR":
-          raise Exception(f'MMseqs2 API is giving errors. Please confirm your input is a valid protein sequence. If error persists, please try again an hour later.')
+          raise Exception(
+              'MMseqs2 API is giving errors. Please confirm your input is a valid protein sequence. If error persists, please try again an hour later.'
+          )
 
         if out["status"] == "MAINTENANCE":
-          raise Exception(f'MMseqs2 API is undergoing maintenance. Please try again in a few minutes.')
+          raise Exception(
+              'MMseqs2 API is undergoing maintenance. Please try again in a few minutes.'
+          )
 
         # wait for job to finish
         ID,TIME = out["id"],0
@@ -175,7 +179,9 @@ def run_mmseqs2(x, prefix, use_env=True, use_filter=True,
 
         if out["status"] == "ERROR":
           REDO = False
-          raise Exception(f'MMseqs2 API is giving errors. Please confirm your input is a valid protein sequence. If error persists, please try again an hour later.')
+          raise Exception(
+              'MMseqs2 API is giving errors. Please confirm your input is a valid protein sequence. If error persists, please try again an hour later.'
+          )
 
       # Download results
       download(ID, tar_gz_file)
@@ -256,9 +262,8 @@ def get_hash(x):
   return hashlib.sha1(x.encode()).hexdigest()
   
 def homooligomerize(msas, deletion_matrices, homooligomer=1):
- if homooligomer == 1:
-  return msas, deletion_matrices
- else:
+  if homooligomer == 1:
+    return msas, deletion_matrices
   new_msas = []
   new_mtxs = []
   for o in range(homooligomer):
@@ -286,7 +291,7 @@ def homooligomerize_heterooligomer(msas, deletion_matrices, lengths, homooligome
   '''
   if max(homooligomers) == 1:
     return msas, deletion_matrices
-  
+
   elif len(homooligomers) == 1:
     return homooligomerize(msas, deletion_matrices, homooligomers[0])
 
@@ -305,13 +310,14 @@ def homooligomerize_heterooligomer(msas, deletion_matrices, lengths, homooligome
         # split sequence
         _s,_m,_ok = [],[],[]
         for i,j in frag_ij:
-          _s.append(s[i:j]); _m.append(m[i:j])
-          _ok.append(max([o != "-" for o in _s[-1]]))
+          _s.append(s[i:j])
+          _m.append(m[i:j])
+          _ok.append(max(o != "-" for o in _s[-1]))
 
         if n == 0:
           # if first query sequence
           mod_msa.append("".join([x*h for x,h in zip(_s,homooligomers)]))
-          mod_mtx.append(sum([x*h for x,h in zip(_m,homooligomers)],[]))
+          mod_mtx.append(sum((x*h for x,h in zip(_m,homooligomers)), []))
 
         elif sum(_ok) == 1:
           # elif one fragment: copy each fragment to every homooligomeric copy
@@ -322,7 +328,7 @@ def homooligomerize_heterooligomer(msas, deletion_matrices, lengths, homooligome
             _blank_seq[a][h_a] = _s[a]
             _blank_mtx[a][h_a] = _m[a]
             mod_msa.append("".join(["".join(x) for x in _blank_seq]))
-            mod_mtx.append(sum([sum(x,[]) for x in _blank_mtx],[]))
+            mod_mtx.append(sum((sum(x,[]) for x in _blank_mtx), []))
         else:
           # else: copy fragment pair to every homooligomeric copy pair
           for a in range(len(lengths)-1):
@@ -337,7 +343,7 @@ def homooligomerize_heterooligomer(msas, deletion_matrices, lengths, homooligome
                         _blank_seq[c][h_c] = _s[c]
                         _blank_mtx[c][h_c] = _m[c]
                       mod_msa.append("".join(["".join(x) for x in _blank_seq]))
-                      mod_mtx.append(sum([sum(x,[]) for x in _blank_mtx],[]))
+                      mod_mtx.append(sum((sum(x,[]) for x in _blank_mtx), []))
       mod_msas.append(mod_msa)
       mod_mtxs.append(mod_mtx)
     return mod_msas, mod_mtxs
@@ -382,7 +388,7 @@ def plot_ticks(Ls):
   plt.yticks(ticks,alphabet_list[:len(ticks)])
 
 def plot_confidence(plddt, pae=None, Ls=None, dpi=100):
-  use_ptm = False if pae is None else True
+  use_ptm = pae is not None
   if use_ptm:
     plt.figure(figsize=(10,3), dpi=dpi)
     plt.subplot(1,2,1);
@@ -467,7 +473,7 @@ def read_pdb_renum(pdb_filename, Ls=None):
     L_init = 0
     new_chain = {}
     for L,c in zip(Ls, alphabet_list):
-      new_chain.update({i:c for i in range(L_init,L_init+L)})
+      new_chain |= {i:c for i in range(L_init,L_init+L)}
       L_init += L  
 
   n,pdb_out = 1,[]
@@ -480,7 +486,7 @@ def read_pdb_renum(pdb_filename, Ls=None):
         resnum_,chain_ = resnum,chain
         n += 1
       if Ls is None: pdb_out.append("%s%4i%s" % (line[:22],n,line[26:]))
-      else: pdb_out.append("%s%s%4i%s" % (line[:21],new_chain[n-1],n,line[26:]))        
+      else: pdb_out.append("%s%s%4i%s" % (line[:21],new_chain[n-1],n,line[26:]))
   return "".join(pdb_out)
 
 def show_pdb(pred_output_path, show_sidechains=False, show_mainchains=False,
@@ -512,15 +518,54 @@ def show_pdb(pred_output_path, show_sidechains=False, show_mainchains=False,
       view.addStyle({'and':[{'resn':"PRO"},{'atom':['C','O'],'invert':True}]},
                     {'stick':{'colorscheme':"yellowCarbon",'radius':0.3}})
     else:
-      view.addStyle({'and':[{'resn':["GLY","PRO"],'invert':True},{'atom':BB,'invert':True}]},
-                    {'stick':{'colorscheme':f"WhiteCarbon",'radius':0.3}})
-      view.addStyle({'and':[{'resn':"GLY"},{'atom':'CA'}]},
-                    {'sphere':{'colorscheme':f"WhiteCarbon",'radius':0.3}})
-      view.addStyle({'and':[{'resn':"PRO"},{'atom':['C','O'],'invert':True}]},
-                    {'stick':{'colorscheme':f"WhiteCarbon",'radius':0.3}})
+      view.addStyle(
+          {
+              'and': [
+                  {
+                      'resn': ["GLY", "PRO"],
+                      'invert': True
+                  },
+                  {
+                      'atom': BB,
+                      'invert': True
+                  },
+              ]
+          },
+          {'stick': {
+              'colorscheme': "WhiteCarbon",
+              'radius': 0.3
+          }},
+      )
+      view.addStyle(
+          {'and': [{
+              'resn': "GLY"
+          }, {
+              'atom': 'CA'
+          }]},
+          {'sphere': {
+              'colorscheme': "WhiteCarbon",
+              'radius': 0.3
+          }},
+      )
+      view.addStyle(
+          {'and': [{
+              'resn': "PRO"
+          }, {
+              'atom': ['C', 'O'],
+              'invert': True
+          }]},
+          {'stick': {
+              'colorscheme': "WhiteCarbon",
+              'radius': 0.3
+          }},
+      )
   if show_mainchains:
     BB = ['C','O','N','CA']
-    view.addStyle({'atom':BB},{'stick':{'colorscheme':f"WhiteCarbon",'radius':0.3}})
+    view.addStyle({'atom': BB},
+                  {'stick': {
+                      'colorscheme': "WhiteCarbon",
+                      'radius': 0.3
+                  }})
   view.zoomTo()
   return view
 
@@ -583,13 +628,11 @@ def plot_dists(dists, Ls=None, dpi=100, fig=True):
 def kabsch(a, b, weights=None, return_v=False):
   a = np.asarray(a)
   b = np.asarray(b)
-  if weights is None: weights = np.ones(len(b))
-  else: weights = np.asarray(weights)
+  weights = np.ones(len(b)) if weights is None else np.asarray(weights)
   B = np.einsum('ji,jk->ik', weights[:, None] * a, b)
   u, s, vh = np.linalg.svd(B)
   if np.linalg.det(u @ vh) < 0: u[:, -1] = -u[:, -1]
-  if return_v: return u
-  else: return u @ vh
+  return u if return_v else u @ vh
 
 def plot_pseudo_3D(xyz, c=None, ax=None, chainbreak=5,
                    cmap="gist_rainbow", line_w=2.0,
@@ -611,8 +654,7 @@ def plot_pseudo_3D(xyz, c=None, ax=None, chainbreak=5,
   ord = seg_z.argsort()
 
   # set colors
-  if c is None: c = np.arange(len(seg))[::-1]
-  else: c = (c[1:] + c[:-1])/2
+  c = np.arange(len(seg))[::-1] if c is None else (c[1:] + c[:-1])/2
   c = rescale(c,cmin,cmax)  
 
   if isinstance(cmap, str):
@@ -620,7 +662,7 @@ def plot_pseudo_3D(xyz, c=None, ax=None, chainbreak=5,
     colors = matplotlib.cm.get_cmap(cmap)(c)
   else:
     colors = cmap(c)
-  
+
   if chainbreak is not None:
     dist = np.linalg.norm(xyz[:-1] - xyz[1:], axis=-1)
     colors[...,3] = (dist < chainbreak).astype(np.float)
@@ -641,7 +683,7 @@ def plot_pseudo_3D(xyz, c=None, ax=None, chainbreak=5,
     fig = ax.get_figure()
     if ax.get_xlim() == (0,1):
       set_lim = True
-      
+
   if set_lim:
     xy_min = xyz[:,:2].min() - line_w
     xy_max = xyz[:,:2].max() + line_w
@@ -649,14 +691,14 @@ def plot_pseudo_3D(xyz, c=None, ax=None, chainbreak=5,
     ax.set_ylim(xy_min,xy_max)
 
   ax.set_aspect('equal')
-    
+
   # determine linewidths
   width = fig.bbox_inches.width * ax.get_position().width
   linewidths = line_w * 72 * width / np.diff(ax.get_xlim())
 
   lines = mcoll.LineCollection(seg_xy[ord], colors=colors[ord], linewidths=linewidths,
                                path_effects=[matplotlib.patheffects.Stroke(capstyle="round")])
-  
+
   return ax.add_collection(lines)
 
 def add_text(text, ax):
